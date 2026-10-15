@@ -18,12 +18,14 @@ function App() {
   const [courseError, setCourseError] = useState("");
   const [studentError, setStudentError] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("All");
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Load registered students from the backend.
   const loadStudents = useCallback(async () => {
     setRefreshing(true);
     setStudentError("");
@@ -36,16 +38,23 @@ function App() {
       }
 
       const data = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error("The server returned an unexpected response.");
+      }
+
       setStudents(data);
     } catch (error) {
       setStudentError(
-        "Unable to load students. Check that the backend is running."
+        error.message ||
+          "Unable to load students. Check that the backend is running."
       );
     } finally {
       setRefreshing(false);
     }
   }, []);
 
+  // Check the backend and load available courses.
   useEffect(() => {
     async function loadCourses() {
       try {
@@ -62,6 +71,7 @@ function App() {
         }
 
         setStatus("Connected to server and database");
+        setCourseError("");
 
         const response = await fetch(`${API_URL}/courses`);
 
@@ -69,10 +79,13 @@ function App() {
           throw new Error("Could not load courses.");
         }
 
-        setCourses(await response.json());
+        const data = await response.json();
+        setCourses(data);
       } catch (error) {
         setStatus("Connection problem");
-        setCourseError(error.message);
+        setCourseError(
+          error.message || "Unable to connect to the backend."
+        );
       }
     }
 
@@ -80,6 +93,39 @@ function App() {
     loadStudents();
   }, [loadStudents]);
 
+  // Create a list of unique departments from student records.
+  const departmentOptions = [
+    ...new Set(
+      students
+        .map((student) => student.department)
+        .filter(Boolean)
+    ),
+  ].sort();
+
+  // Search by name, email, student number, or department,
+  // and optionally filter by a selected department.
+  const filteredStudents = students.filter((student) => {
+    const term = search.trim().toLowerCase();
+
+    const searchableValues = [
+      student.full_name,
+      student.email,
+      student.student_number,
+      student.department,
+    ];
+
+    const matchesSearch = searchableValues.some((value) =>
+      String(value ?? "").toLowerCase().includes(term)
+    );
+
+    const matchesDepartment =
+      selectedDepartment === "All" ||
+      student.department === selectedDepartment;
+
+    return matchesSearch && matchesDepartment;
+  });
+
+  // Keep the registration form updated.
   function handleChange(event) {
     const { name, value } = event.target;
 
@@ -92,6 +138,7 @@ function App() {
     setFormError("");
   }
 
+  // Register a student in the database.
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
@@ -116,9 +163,10 @@ function App() {
       setMessage(
         `Welcome, ${data.student.full_name}! Registration was successful.`
       );
+
       setForm(emptyForm);
 
-      // Update the dashboard with the newly registered student.
+      // Refresh the student list after successful registration.
       await loadStudents();
     } catch (error) {
       setFormError(
@@ -129,23 +177,9 @@ function App() {
     }
   }
 
-  const filteredStudents = students.filter((student) => {
-    const term = search.trim().toLowerCase();
-
-    return [
-      student.full_name,
-      student.email,
-      student.student_number,
-      student.department,
-    ].some((value) => value?.toLowerCase().includes(term));
-  });
-
-  const departments = new Set(
-    students.map((student) => student.department).filter(Boolean)
-  );
-
   return (
     <div className="app">
+      {/* Navigation */}
       <header className="navbar">
         <a className="brand" href="#home">
           <span className="brand-icon">U</span>
@@ -240,7 +274,9 @@ function App() {
             {courses.map((course) => (
               <article className="course-card" key={course.id}>
                 <div className="course-icon">📘</div>
-                <span className="course-code">{course.course_code}</span>
+                <span className="course-code">
+                  {course.course_code}
+                </span>
                 <h3>{course.course_name}</h3>
                 <p>{course.department}</p>
 
@@ -259,7 +295,9 @@ function App() {
             <div>
               <span className="eyebrow">STUDENT MANAGEMENT</span>
               <h2>Student Dashboard</h2>
-              <p>View and search students registered in your system.</p>
+              <p>
+                View and search students registered in your system.
+              </p>
             </div>
 
             <button
@@ -268,13 +306,20 @@ function App() {
               onClick={loadStudents}
               disabled={refreshing}
             >
-              <span className={refreshing ? "refresh-symbol spinning" : "refresh-symbol"}>
+              <span
+                className={
+                  refreshing
+                    ? "refresh-symbol spinning"
+                    : "refresh-symbol"
+                }
+              >
                 ↻
               </span>
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
           </div>
 
+          {/* Dashboard statistics */}
           <div className="student-stats">
             <article className="student-stat-card">
               <div className="stat-icon blue">♙</div>
@@ -288,7 +333,7 @@ function App() {
               <div className="stat-icon purple">▤</div>
               <div>
                 <p>Departments represented</p>
-                <strong>{departments.size}</strong>
+                <strong>{departmentOptions.length}</strong>
               </div>
             </article>
 
@@ -303,26 +348,51 @@ function App() {
             </article>
           </div>
 
+          {/* Student list, search, and department filter */}
           <div className="student-list-card">
             <div className="student-list-heading">
               <div>
                 <h3>Registered Students</h3>
                 <p>
                   {filteredStudents.length}{" "}
-                  {filteredStudents.length === 1 ? "student" : "students"} found
+                  {filteredStudents.length === 1
+                    ? "student"
+                    : "students"}{" "}
+                  found
                 </p>
               </div>
 
-              <label className="student-search">
-                <span>⌕</span>
-                <input
-                  type="search"
-                  placeholder="Search students..."
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  aria-label="Search students"
-                />
-              </label>
+              <div className="student-filters">
+                <label className="student-search">
+                  <span>⌕</span>
+                  <input
+                    type="search"
+                    placeholder="Search students..."
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    aria-label="Search students"
+                  />
+                </label>
+
+                <label className="department-filter">
+                  <span>Department</span>
+                  <select
+                    value={selectedDepartment}
+                    onChange={(event) =>
+                      setSelectedDepartment(event.target.value)
+                    }
+                    aria-label="Filter students by department"
+                  >
+                    <option value="All">All departments</option>
+
+                    {departmentOptions.map((department) => (
+                      <option key={department} value={department}>
+                        {department}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
 
             {studentError ? (
@@ -330,10 +400,12 @@ function App() {
                 <div className="empty-icon">⚠</div>
                 <h3>Could not load students</h3>
                 <p>{studentError}</p>
+
                 <button
                   className="refresh-button"
                   onClick={loadStudents}
                   type="button"
+                  disabled={refreshing}
                 >
                   Try again
                 </button>
@@ -354,7 +426,20 @@ function App() {
               <div className="student-empty">
                 <div className="empty-icon">⌕</div>
                 <h3>No matching students</h3>
-                <p>Try searching with another name, email, or student number.</p>
+                <p>
+                  Try another search term or select a different department.
+                </p>
+
+                <button
+                  className="refresh-button"
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setSelectedDepartment("All");
+                  }}
+                >
+                  Clear filters
+                </button>
               </div>
             ) : (
               <div className="student-table-wrapper">
@@ -383,15 +468,20 @@ function App() {
                             <strong>{student.full_name}</strong>
                           </div>
                         </td>
+
                         <td>
                           <span className="student-number">
                             {student.student_number}
                           </span>
                         </td>
+
                         <td>{student.email}</td>
                         <td>{student.department}</td>
+
                         <td>
-                          <span className="student-badge">Registered</span>
+                          <span className="student-badge">
+                            Registered
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -402,7 +492,7 @@ function App() {
           </div>
         </section>
 
-        {/* Registration form */}
+        {/* Student registration form */}
         <section className="registration-section" id="register">
           <div className="registration-heading">
             <span className="eyebrow">JOIN OUR UNIVERSITY</span>
@@ -468,11 +558,19 @@ function App() {
                 required
               >
                 <option value="">Select department</option>
-                <option value="Computer Science">Computer Science</option>
-                <option value="Software Engineering">Software Engineering</option>
-                <option value="Information Technology">Information Technology</option>
+                <option value="Computer Science">
+                  Computer Science
+                </option>
+                <option value="Software Engineering">
+                  Software Engineering
+                </option>
+                <option value="Information Technology">
+                  Information Technology
+                </option>
                 <option value="Mathematics">Mathematics</option>
-                <option value="Electrical Engineering">Electrical Engineering</option>
+                <option value="Electrical Engineering">
+                  Electrical Engineering
+                </option>
               </select>
             </div>
 
@@ -513,5 +611,3 @@ function App() {
 }
 
 export default App;
-
-

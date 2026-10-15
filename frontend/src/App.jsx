@@ -11,6 +11,14 @@ const emptyForm = {
   department: "",
 };
 
+const departments = [
+  "Computer Science",
+  "Software Engineering",
+  "Information Technology",
+  "Mathematics",
+  "Electrical Engineering",
+];
+
 function App() {
   const [courses, setCourses] = useState([]);
   const [students, setStudents] = useState([]);
@@ -25,7 +33,7 @@ function App() {
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Load registered students from the backend.
+  // Load students from the backend.
   const loadStudents = useCallback(async () => {
     setRefreshing(true);
     setStudentError("");
@@ -34,66 +42,85 @@ function App() {
       const response = await fetch(`${API_URL}/students`);
 
       if (!response.ok) {
-        throw new Error("Could not load students.");
+        throw new Error(
+          `Could not load students (HTTP ${response.status}).`
+        );
       }
 
       const data = await response.json();
 
       if (!Array.isArray(data)) {
-        throw new Error("The server returned an unexpected response.");
+        throw new Error(
+          "The student API did not return a list of students."
+        );
       }
 
       setStudents(data);
     } catch (error) {
       setStudentError(
         error.message ||
-          "Unable to load students. Check that the backend is running."
+          "Unable to load students. Check your backend."
       );
     } finally {
       setRefreshing(false);
     }
   }, []);
 
-  // Check the backend and load available courses.
-  useEffect(() => {
-    async function loadCourses() {
-      try {
-        const healthResponse = await fetch(`${API_URL}/health`);
+  // Check the backend and load courses.
+  const loadCourses = useCallback(async () => {
+    setCourseError("");
 
-        if (!healthResponse.ok) {
-          throw new Error("Backend is not responding.");
-        }
+    try {
+      const healthResponse = await fetch(`${API_URL}/health`);
 
-        const health = await healthResponse.json();
+      if (!healthResponse.ok) {
+        throw new Error("The backend health check failed.");
+      }
 
-        if (health.database !== "connected") {
-          throw new Error("Check your MySQL configuration.");
-        }
+      const health = await healthResponse.json();
 
-        setStatus("Connected to server and database");
-        setCourseError("");
-
-        const response = await fetch(`${API_URL}/courses`);
-
-        if (!response.ok) {
-          throw new Error("Could not load courses.");
-        }
-
-        const data = await response.json();
-        setCourses(data);
-      } catch (error) {
-        setStatus("Connection problem");
-        setCourseError(
-          error.message || "Unable to connect to the backend."
+      if (health.database !== "connected") {
+        throw new Error(
+          "The backend responded, but the database is not connected."
         );
       }
-    }
 
+      const response = await fetch(`${API_URL}/courses`);
+
+      if (!response.ok) {
+        throw new Error(
+          `Could not load courses (HTTP ${response.status}).`
+        );
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error(
+          "The courses API did not return a list of courses."
+        );
+      }
+
+      setCourses(data);
+      setStatus("Connected to server and database");
+    } catch (error) {
+      setStatus("Connection problem");
+      setCourseError(
+        error.message ||
+          "Unable to connect to the backend."
+      );
+    }
+  }, []);
+
+  useEffect(() => {
     loadCourses();
     loadStudents();
-  }, [loadStudents]);
+  }, [loadCourses, loadStudents]);
 
-  // Create a list of unique departments from student records.
+  // Dashboard statistics.
+  const totalStudents = students.length;
+  const totalCourses = courses.length;
+
   const departmentOptions = [
     ...new Set(
       students
@@ -102,8 +129,9 @@ function App() {
     ),
   ].sort();
 
-  // Search by name, email, student number, or department,
-  // and optionally filter by a selected department.
+  const totalDepartments = departmentOptions.length;
+
+  // Search students and apply the department filter.
   const filteredStudents = students.filter((student) => {
     const term = search.trim().toLowerCase();
 
@@ -125,7 +153,7 @@ function App() {
     return matchesSearch && matchesDepartment;
   });
 
-  // Keep the registration form updated.
+  // Update form fields.
   function handleChange(event) {
     const { name, value } = event.target;
 
@@ -138,11 +166,29 @@ function App() {
     setFormError("");
   }
 
-  // Register a student in the database.
+  // Register a student through the backend.
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
     setFormError("");
+
+    const cleanForm = {
+      full_name: form.full_name.trim(),
+      email: form.email.trim(),
+      student_number: form.student_number.trim(),
+      department: form.department,
+    };
+
+    if (
+      !cleanForm.full_name ||
+      !cleanForm.email ||
+      !cleanForm.student_number ||
+      !cleanForm.department
+    ) {
+      setFormError("Please complete every field.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -151,26 +197,30 @@ function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(cleanForm),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.message || "Registration failed.");
+        throw new Error(
+          data.message ||
+            `Registration failed (HTTP ${response.status}).`
+        );
       }
 
       setMessage(
-        `Welcome, ${data.student.full_name}! Registration was successful.`
+        data.message ||
+          `Student ${cleanForm.full_name} registered successfully.`
       );
 
       setForm(emptyForm);
 
-      // Refresh the student list after successful registration.
+      // Refresh the dashboard after registration.
       await loadStudents();
     } catch (error) {
       setFormError(
-        `${error.message} Check your backend and MySQL connection.`
+        `${error.message} Check that the backend and database are running.`
       );
     } finally {
       setSubmitting(false);
@@ -224,16 +274,18 @@ function App() {
           <div className="hero-card">
             <div className="hero-card-icon">🎓</div>
             <h2>Welcome to UniReg</h2>
-            <p>Your academic information, organized in one place.</p>
+            <p>
+              Your academic information, organized in one place.
+            </p>
 
             <div className="mini-stat">
               <span>Available courses</span>
-              <strong>{courses.length}</strong>
+              <strong>{totalCourses}</strong>
             </div>
 
             <div className="mini-stat">
               <span>Registered students</span>
-              <strong>{students.length}</strong>
+              <strong>{totalStudents}</strong>
             </div>
 
             <div className="mini-stat">
@@ -247,6 +299,34 @@ function App() {
           </div>
         </section>
 
+        {/* Dashboard statistics */}
+        <section className="courses-section" id="dashboard">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">AT A GLANCE</span>
+              <h2>University Dashboard</h2>
+              <p>See an overview of your current records.</p>
+            </div>
+          </div>
+
+          <div className="stats-grid">
+            <article className="stat-card">
+              <h3>Total Students</h3>
+              <p>{totalStudents}</p>
+            </article>
+
+            <article className="stat-card">
+              <h3>Total Courses</h3>
+              <p>{totalCourses}</p>
+            </article>
+
+            <article className="stat-card">
+              <h3>Departments Represented</h3>
+              <p>{totalDepartments}</p>
+            </article>
+          </div>
+        </section>
+
         {/* Course catalog */}
         <section className="courses-section" id="courses">
           <div className="section-heading">
@@ -257,7 +337,7 @@ function App() {
             </div>
 
             <span className="course-count">
-              {courses.length} courses
+              {totalCourses} courses
             </span>
           </div>
 
@@ -267,7 +347,13 @@ function App() {
           </div>
 
           {courseError && (
-            <div className="error-message">{courseError}</div>
+            <div className="error-message" role="alert">
+              {courseError}
+            </div>
+          )}
+
+          {!courseError && courses.length === 0 && (
+            <p>No courses are available yet.</p>
           )}
 
           <div className="course-grid">
@@ -289,7 +375,7 @@ function App() {
           </div>
         </section>
 
-        {/* Student dashboard */}
+        {/* Student management */}
         <section className="students-section" id="students">
           <div className="student-heading">
             <div>
@@ -303,7 +389,10 @@ function App() {
             <button
               className="refresh-button"
               type="button"
-              onClick={loadStudents}
+              onClick={() => {
+                loadStudents();
+                loadCourses();
+              }}
               disabled={refreshing}
             >
               <span
@@ -319,13 +408,12 @@ function App() {
             </button>
           </div>
 
-          {/* Dashboard statistics */}
           <div className="student-stats">
             <article className="student-stat-card">
               <div className="stat-icon blue">♙</div>
               <div>
                 <p>Total students</p>
-                <strong>{students.length}</strong>
+                <strong>{totalStudents}</strong>
               </div>
             </article>
 
@@ -333,7 +421,7 @@ function App() {
               <div className="stat-icon purple">▤</div>
               <div>
                 <p>Departments represented</p>
-                <strong>{departmentOptions.length}</strong>
+                <strong>{totalDepartments}</strong>
               </div>
             </article>
 
@@ -342,13 +430,16 @@ function App() {
               <div>
                 <p>System status</p>
                 <strong className="stat-status">
-                  {studentError ? "Check connection" : "Ready"}
+                  {studentError || courseError
+                    ? "Check connection"
+                    : status === "Connected to server and database"
+                      ? "Ready"
+                      : "Connecting..."}
                 </strong>
               </div>
             </article>
           </div>
 
-          {/* Student list, search, and department filter */}
           <div className="student-list-card">
             <div className="student-list-heading">
               <div>
@@ -369,7 +460,9 @@ function App() {
                     type="search"
                     placeholder="Search students..."
                     value={search}
-                    onChange={(event) => setSearch(event.target.value)}
+                    onChange={(event) =>
+                      setSearch(event.target.value)
+                    }
                     aria-label="Search students"
                   />
                 </label>
@@ -416,7 +509,7 @@ function App() {
                 <h3>No students registered yet</h3>
                 <p>
                   Register your first student using the form below.
-                  Their record will appear here after successful registration.
+                  The student will appear here after registration.
                 </p>
                 <a className="primary-button" href="#register">
                   Register First Student
@@ -427,7 +520,8 @@ function App() {
                 <div className="empty-icon">⌕</div>
                 <h3>No matching students</h3>
                 <p>
-                  Try another search term or select a different department.
+                  Try another search term or select a different
+                  department.
                 </p>
 
                 <button
@@ -535,7 +629,9 @@ function App() {
             </div>
 
             <div className="form-field">
-              <label htmlFor="student_number">Student number</label>
+              <label htmlFor="student_number">
+                Student number
+              </label>
               <input
                 id="student_number"
                 name="student_number"
@@ -558,19 +654,12 @@ function App() {
                 required
               >
                 <option value="">Select department</option>
-                <option value="Computer Science">
-                  Computer Science
-                </option>
-                <option value="Software Engineering">
-                  Software Engineering
-                </option>
-                <option value="Information Technology">
-                  Information Technology
-                </option>
-                <option value="Mathematics">Mathematics</option>
-                <option value="Electrical Engineering">
-                  Electrical Engineering
-                </option>
+
+                {departments.map((department) => (
+                  <option key={department} value={department}>
+                    {department}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -595,7 +684,7 @@ function App() {
             </button>
 
             <p className="form-note">
-              Student information is saved to your MySQL database.
+              Student information is saved through your backend API.
             </p>
           </form>
         </section>
@@ -603,7 +692,8 @@ function App() {
 
       <footer>
         <p>
-          © {new Date().getFullYear()} UniReg · University Registration System
+          © {new Date().getFullYear()} UniReg · University Registration
+          System
         </p>
       </footer>
     </div>

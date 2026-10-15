@@ -22,12 +22,14 @@ const db = mysql.createPool({
   connectionLimit: 10,
 });
 
+// API home
 app.get("/", (req, res) => {
   res.json({
     message: "University Registration System API is running!",
   });
 });
 
+// Check server and database
 app.get("/api/health", async (req, res) => {
   try {
     await db.query("SELECT 1");
@@ -47,10 +49,14 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
+// Get all courses
 app.get("/api/courses", async (req, res) => {
   try {
     const [courses] = await db.query(
-      "SELECT id, course_code, course_name, credit_hours, department FROM courses ORDER BY course_code"
+      `SELECT id, course_code, course_name,
+              credit_hours, department
+       FROM courses
+       ORDER BY course_code`
     );
 
     res.json(courses);
@@ -63,11 +69,35 @@ app.get("/api/courses", async (req, res) => {
   }
 });
 
+// Get all registered students
+app.get("/api/students", async (req, res) => {
+  try {
+    const [students] = await db.query(
+      `SELECT id, full_name, email, student_number, department
+       FROM students
+       ORDER BY id DESC`
+    );
+
+    res.json(students);
+  } catch (error) {
+    console.error("Load students error:", error.message);
+
+    res.status(500).json({
+      message: "Could not load students.",
+    });
+  }
+});
+
+// Register a student
 app.post("/api/students", async (req, res) => {
   try {
-    const { full_name, email, student_number, department } = req.body;
+    const {
+      full_name,
+      email,
+      student_number,
+      department,
+    } = req.body;
 
-    // Check that all fields are provided
     if (
       !full_name?.trim() ||
       !email?.trim() ||
@@ -79,16 +109,15 @@ app.post("/api/students", async (req, res) => {
       });
     }
 
-    // Basic email validation
     const cleanEmail = email.trim().toLowerCase();
 
+    // Validate email format
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       return res.status(400).json({
         message: "Please enter a valid email address.",
       });
     }
 
-    // Save the student using a parameterized SQL query
     const [result] = await db.execute(
       `INSERT INTO students
        (full_name, email, student_number, department)
@@ -125,6 +154,8 @@ app.post("/api/students", async (req, res) => {
     });
   }
 });
+
+// Administrator login
 app.post("/api/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -149,6 +180,7 @@ app.post("/api/admin/login", async (req, res) => {
     }
 
     const admin = admins[0];
+
     const passwordMatches = await bcrypt.compare(
       password,
       admin.password_hash
@@ -187,12 +219,14 @@ app.post("/api/admin/login", async (req, res) => {
     });
   } catch (error) {
     console.error("Admin login error:", error.message);
+
     res.status(500).json({
       message: "Unable to log in. Please try again.",
     });
   }
 });
 
+// Start the backend
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

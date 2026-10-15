@@ -1488,4 +1488,97 @@ footer {
   }
 }
 
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --theme-bg: #f5f7fb;
+  --theme-card: #ffffff;
+  --theme-text: #172033;
+  --theme-muted: #64748b;
+  --theme-border: #e2e8f0;
+  --theme-input: #ffffff;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --theme-bg: #111827;
+  --theme-card: #1f2937;
+  --theme-text: #f1f5f9;
+  --theme-muted: #cbd5e1;
+  --theme-border: #374151;
+  --theme-input: #111827;
+}
+
+body,
+.app {
+  background: var(--theme-bg);
+  color: var(--theme-text);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.navbar,
+.hero-card,
+.stat-card,
+.course-card,
+.student-stat-card,
+.student-list-card,
+.registration-form {
+  background-color: var(--theme-card);
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+h1, h2, h3, h4, strong, label, th, td,
+.main-nav a, .brand {
+  color: var(--theme-text);
+}
+
+p, .eyebrow, .course-code, .form-note {
+  color: var(--theme-muted);
+}
+
+input, select, textarea {
+  background-color: var(--theme-input);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-border);
+}
+
+.student-table th,
+.student-table td {
+  border-color: var(--theme-border);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-toggle {
+  padding: 10px 14px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: var(--theme-card);
+  color: var(--theme-text);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.theme-toggle:hover {
+  opacity: 0.85;
+}
+
+footer {
+  background-color: var(--theme-card);
+  color: var(--theme-muted);
+}
+
+@media (max-width: 768px) {
+  .nav-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+
 

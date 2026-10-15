@@ -33,6 +33,39 @@ function App() {
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Load the saved theme, or use light mode initially.
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem("unireg-theme") === "dark"
+        ? "dark"
+        : "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  // Switch between light and dark themes.
+  function toggleTheme() {
+    setTheme((currentTheme) => {
+      const newTheme =
+        currentTheme === "light" ? "dark" : "light";
+
+      try {
+        localStorage.setItem("unireg-theme", newTheme);
+      } catch {
+        // The theme still works if browser storage is unavailable.
+      }
+
+      return newTheme;
+    });
+  }
+
+  // Apply the selected theme to the whole page.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.style.colorScheme = theme;
+  }, [theme]);
+
   // Load students from the backend.
   const loadStudents = useCallback(async () => {
     setRefreshing(true);
@@ -58,8 +91,7 @@ function App() {
       setStudents(data);
     } catch (error) {
       setStudentError(
-        error.message ||
-          "Unable to load students. Check your backend."
+        error.message || "Unable to load students. Check your backend."
       );
     } finally {
       setRefreshing(false);
@@ -106,12 +138,12 @@ function App() {
     } catch (error) {
       setStatus("Connection problem");
       setCourseError(
-        error.message ||
-          "Unable to connect to the backend."
+        error.message || "Unable to connect to the backend."
       );
     }
   }, []);
 
+  // Load initial data.
   useEffect(() => {
     loadCourses();
     loadStudents();
@@ -153,7 +185,7 @@ function App() {
     return matchesSearch && matchesDepartment;
   });
 
-  // Update form fields.
+  // Update registration form fields.
   function handleChange(event) {
     const { name, value } = event.target;
 
@@ -216,7 +248,7 @@ function App() {
 
       setForm(emptyForm);
 
-      // Refresh the dashboard after registration.
+      // Refresh the student list after registration.
       await loadStudents();
     } catch (error) {
       setFormError(
@@ -243,9 +275,23 @@ function App() {
           <a href="#register">Register</a>
         </nav>
 
-        <a className="login-button" href="#register">
-          Get Started
-        </a>
+        <div className="nav-actions">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${
+              theme === "light" ? "dark" : "light"
+            } mode`}
+            aria-pressed={theme === "dark"}
+          >
+            {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+          </button>
+
+          <a className="login-button" href="#register">
+            Get Started
+          </a>
+        </div>
       </header>
 
       <main>

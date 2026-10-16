@@ -1,4 +1,3 @@
-
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -21,6 +20,16 @@ const db = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
 });
+
+// Helper function to calculate letter grade and pass/fail result
+function calculateGrade(marks) {
+  const numMarks = Number(marks);
+  if (numMarks >= 90) return { letter: "A", result: "Pass" };
+  if (numMarks >= 80) return { letter: "B", result: "Pass" };
+  if (numMarks >= 70) return { letter: "C", result: "Pass" };
+  if (numMarks >= 60) return { letter: "D", result: "Pass" };
+  return { letter: "F", result: "Fail" };
+}
 
 // API home
 app.get("/", (req, res) => {
@@ -226,7 +235,134 @@ app.post("/api/admin/login", async (req, res) => {
   }
 });
 
+// --- GRADE MANAGEMENT ENDPOINTS ---
+
+// Get all submitted grades with student and course details
+app.get("/api/grades", async (req, res) => {
+  try {
+    const [grades] = await db.query(
+      `SELECT g.id, g.student_id, g.course_id, g.marks, g.letter_grade, g.result, g.updated_at,
+              s.full_name AS student_name, s.student_number,
+              c.course_code, c.course_name
+       FROM grades g
+       JOIN students s ON g.student_id = s.id
+       JOIN courses c ON g.course_id = c.id
+       ORDER BY g.updated_at DESC`
+    );
+
+    res.json(grades);
+  } catch (error) {
+    console.error("Load grades error:", error.message);
+
+    res.status(500).json({
+      message: "Could not load grades.",
+    });
+  }
+});
+
+// Submit or update a student's grade
+app.post("/api/grades", async (req, res) => {
+  try {
+    const { student_id, course_id, marks } = req.body;
+
+    if (!student_id || !course_id || marks === undefined || marks === "") {
+      return res.status(400).json({
+        message: "Student, course, and marks are required.",
+      });
+    }
+
+    const numMarks = Number(marks);
+    if (isNaN(numMarks) || numMarks < 0 || numMarks > 100) {
+      return res.status(400).json({
+        message: "Marks must be a number between 0 and 100.",
+      });
+    }
+
+    // Verify student exists
+    const [students] = await db.execute("SELECT id FROM students WHERE id = ?", [student_id]);
+    if (students.length === 0) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+
+    // Verify course exists
+    const [courses] = await db.execute("SELECT id FROM courses WHERE id = ?", [course_id]);
+    if (courses.length === 0) {
+      return res.status(404).json({ message: "Course not found." });
+    }
+
+    // Calculate letter grade and pass/fail result securely on the backend
+    const { letter, result } = calculateGrade(numMarks);
+
+    // Insert or update grade if it already exists for this student + course combination
+    const [dbResult] = await db.execute(
+      `INSERT INTO grades (student_id, course_id, marks, letter_grade, result)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE 
+         marks = VALUES(marks), 
+         letter_grade = VALUES(letter_grade), 
+         result = VALUES(result)`,
+      [student_id, course_id, numMarks, letter, result]
+    );
+
+    res.status(201).json({
+      message: "Grade saved successfully!",
+      grade: {
+        student_id,
+        course_id,
+        marks: numMarks,
+        letter_grade: letter,
+        result,
+      },
+    });
+  } catch (error) {
+    console.error("Save grade error:", error.message);
+
+    res.status(500).json({
+      message: "Failed to save grade. Please try again.",
+    });
+  }
+});
+
 // Start the backend
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
+});
+// Get grades for a specific student by student number
+app.get("/api/student-results/:studentNumber", async (req, res) => {
+  try {
+    const { studentNumber } = req.params;
+
+    // Find student first
+    const [students] = await db.execute(
+      `SELECT id, full_name, email, student_number, department 
+       FROM students 
+       WHERE student_number = ?`,
+      [studentNumber.trim()]
+    );
+
+    if (students.length === 0) {
+      return res.status(404).json({ message: "Student number not found." });
+    }
+
+    const student = students[0];
+
+    // Get all grades for this student
+    const [grades] = await db.execute(
+      `SELECT g.marks, g.letter_grade, g.result, g.updated_at,
+              c.course_code, c.course_name, c.credit_hours, c.department
+       FROM grades g
+       JOIN courses c ON g.course_id = c.id
+       WHERE g.student_id = ?
+       ORDER BY c.course_code`,
+      [student.id]
+    );
+
+    res.json({
+      student,
+      grades,
+    });
+  } catch (error) {
+    console.error("Fetch student results error:", error.message);
+    res.status(500).json({ message: "Could not load student results." });
+  }
 });

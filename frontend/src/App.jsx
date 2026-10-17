@@ -43,7 +43,7 @@ function App() {
     localStorage.setItem("unireg-theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
-  // Fetch all registered students.
+  // Fetch registered students.
   const loadStudents = useCallback(async () => {
     setRefreshing(true);
     setStudentError("");
@@ -69,7 +69,7 @@ function App() {
     }
   }, []);
 
-  // Load database status and courses when the page opens.
+  // Load database status and courses.
   useEffect(() => {
     let cancelled = false;
 
@@ -123,14 +123,14 @@ function App() {
     };
   }, [loadStudents]);
 
-  // Build a unique list of departments in the student database.
+  // Get unique departments from registered students.
   const departments = useMemo(
     () =>
       [...new Set(students.map((s) => s.department).filter(Boolean))].sort(),
     [students]
   );
 
-  // Search by name, email, student number, and department.
+  // Search and filter students.
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
 
@@ -164,7 +164,7 @@ function App() {
     setFormError("");
   }
 
-  // Register a student, then reload the table.
+  // Register a student and refresh the student list.
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
@@ -225,15 +225,20 @@ function App() {
       <main>
         <section className="hero" id="home">
           <div className="hero-text">
-            <span className="eyebrow">YOUR ACADEMIC JOURNEY STARTS HERE</span>
+            <span className="eyebrow">
+              YOUR ACADEMIC JOURNEY STARTS HERE
+            </span>
+
             <h1>
               University Registration,
               <span> made simple.</span>
             </h1>
+
             <p>
               Explore university courses, register students, and manage
               student records in one convenient place.
             </p>
+
             <a className="primary-button" href="#register">
               Register a Student →
             </a>
@@ -243,14 +248,17 @@ function App() {
             <div className="hero-card-icon">🎓</div>
             <h2>Welcome to UniReg</h2>
             <p>Your academic information, organized in one place.</p>
+
             <div className="mini-stat">
               <span>Available courses</span>
               <strong>{courses.length}</strong>
             </div>
+
             <div className="mini-stat">
               <span>Registered students</span>
               <strong>{students.length}</strong>
             </div>
+
             <div className="mini-stat">
               <span>System status</span>
               <strong className="status-text">
@@ -269,6 +277,7 @@ function App() {
               <h2>Available Courses</h2>
               <p>Explore courses offered by the university.</p>
             </div>
+
             <span className="course-count">{courses.length} courses</span>
           </div>
 
@@ -278,7 +287,9 @@ function App() {
           </div>
 
           {courseError && (
-            <div className="error-message" role="alert">{courseError}</div>
+            <div className="error-message" role="alert">
+              {courseError}
+            </div>
           )}
 
           {courses.length > 0 ? (
@@ -289,6 +300,7 @@ function App() {
                   <span className="course-code">{course.course_code}</span>
                   <h3>{course.course_name}</h3>
                   <p>{course.department}</p>
+
                   <div className="course-footer">
                     <span>{course.credit_hours} credit hours</span>
                   </div>
@@ -296,7 +308,9 @@ function App() {
               ))}
             </div>
           ) : (
-            !courseError && <p className="empty-note">No courses to display yet.</p>
+            !courseError && (
+              <p className="empty-note">No courses to display yet.</p>
+            )
           )}
         </section>
 
@@ -318,6 +332,7 @@ function App() {
             </button>
           </div>
 
+          {/* Dashboard statistics */}
           <div className="student-stats">
             <article className="student-stat-card">
               <div className="stat-icon blue">♙</div>
@@ -328,7 +343,15 @@ function App() {
             </article>
 
             <article className="student-stat-card">
-              <div className="stat-icon purple">▤</div>
+              <div className="stat-icon purple">📚</div>
+              <div>
+                <p>Total courses</p>
+                <strong>{courses.length}</strong>
+              </div>
+            </article>
+
+            <article className="student-stat-card">
+              <div className="stat-icon green">🏢</div>
               <div>
                 <p>Departments</p>
                 <strong>{departments.length}</strong>
@@ -336,7 +359,7 @@ function App() {
             </article>
 
             <article className="student-stat-card">
-              <div className="stat-icon green">✓</div>
+              <div className="stat-icon orange">✓</div>
               <div>
                 <p>Database status</p>
                 <strong className="stat-status">
@@ -344,7 +367,9 @@ function App() {
                     ? "Error"
                     : status === "Connected to server and database"
                       ? "Connected"
-                      : "Checking..."}
+                      : status === "Checking connection..."
+                        ? "Checking..."
+                        : "Offline"}
                 </strong>
               </div>
             </article>
@@ -373,12 +398,16 @@ function App() {
 
             <div className="student-filters">
               <label htmlFor="department-filter">Department:</label>
+
               <select
                 id="department-filter"
                 value={selectedDepartment}
-                onChange={(event) => setSelectedDepartment(event.target.value)}
+                onChange={(event) =>
+                  setSelectedDepartment(event.target.value)
+                }
               >
                 <option value="All">All departments</option>
+
                 {departments.map((department) => (
                   <option key={department} value={department}>
                     {department}
@@ -404,6 +433,7 @@ function App() {
               <div className="student-empty">
                 <h3>Could not load students</h3>
                 <p>{studentError}</p>
+
                 <button className="refresh-button" onClick={loadStudents}>
                   Try again
                 </button>
@@ -413,6 +443,7 @@ function App() {
                 <div className="empty-icon">🎓</div>
                 <h3>No students registered yet</h3>
                 <p>Register your first student using the form below.</p>
+
                 <a className="primary-button" href="#register">
                   Register First Student
                 </a>
@@ -434,21 +465,28 @@ function App() {
                       <th>Status</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {filteredStudents.map((student) => (
                       <tr key={student.id}>
                         <td>
                           <div className="student-name-cell">
                             <span className="student-avatar">
-                              {student.full_name?.trim().charAt(0).toUpperCase() || "S"}
+                              {student.full_name
+                                ?.trim()
+                                .charAt(0)
+                                .toUpperCase() || "S"}
                             </span>
                             <strong>{student.full_name}</strong>
                           </div>
                         </td>
+
                         <td>{student.student_number}</td>
                         <td>{student.email}</td>
                         <td>{student.department}</td>
-                        <td><span className="student-badge">Registered</span></td>
+                        <td>
+                          <span className="student-badge">Registered</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -516,6 +554,7 @@ function App() {
                 required
               >
                 <option value="">Select department</option>
+
                 {departmentChoices.map((department) => (
                   <option key={department} value={department}>
                     {department}
@@ -524,19 +563,37 @@ function App() {
               </select>
             </div>
 
-            {message && <div className="success-message" role="status">{message}</div>}
-            {formError && <div className="error-message" role="alert">{formError}</div>}
+            {message && (
+              <div className="success-message" role="status">
+                {message}
+              </div>
+            )}
 
-            <button className="submit-button" type="submit" disabled={submitting}>
+            {formError && (
+              <div className="error-message" role="alert">
+                {formError}
+              </div>
+            )}
+
+            <button
+              className="submit-button"
+              type="submit"
+              disabled={submitting}
+            >
               {submitting ? "Registering..." : "Register Student"}
             </button>
-            <p className="form-note">Student details are saved to MySQL.</p>
+
+            <p className="form-note">
+              Student details are saved to MySQL.
+            </p>
           </form>
         </section>
       </main>
 
       <footer className="footer">
-        <p>© {new Date().getFullYear()} UniReg · University Registration System</p>
+        <p>
+          © {new Date().getFullYear()} UniReg · University Registration System
+        </p>
       </footer>
     </div>
   );

@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 
@@ -37,13 +36,32 @@ function App() {
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Grading system state
+  const [grades, setGrades] = useState([]);
+  const [gradesLoading, setGradesLoading] = useState(false);
+  const [gradesError, setGradesError] = useState("");
+  const [gradeMessage, setGradeMessage] = useState("");
+  const [gradeSubmitting, setGradeSubmitting] = useState(false);
+
+  const [gradeForm, setGradeForm] = useState({
+    student_id: "",
+    course_id: "",
+    marks: "",
+  });
+
+  // Student results state
+  const [resultStudentNumber, setResultStudentNumber] = useState("");
+  const [studentResult, setStudentResult] = useState(null);
+  const [resultLoading, setResultLoading] = useState(false);
+  const [resultError, setResultError] = useState("");
+
   // Apply and remember the selected theme.
   useEffect(() => {
     document.body.classList.toggle("light-mode", !darkMode);
     localStorage.setItem("unireg-theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
-  // Fetch registered students.
+  // Load registered students.
   const loadStudents = useCallback(async () => {
     setRefreshing(true);
     setStudentError("");
@@ -69,7 +87,32 @@ function App() {
     }
   }, []);
 
-  // Load database status and courses.
+  // Load saved grades.
+  const loadGrades = useCallback(async () => {
+    setGradesLoading(true);
+    setGradesError("");
+
+    try {
+      const response = await fetch(`${API_URL}/grades`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to load grades.");
+      }
+
+      if (!Array.isArray(data)) {
+        throw new Error("Unexpected grade data received.");
+      }
+
+      setGrades(data);
+    } catch (error) {
+      setGradesError(error.message || "Could not load grades.");
+    } finally {
+      setGradesLoading(false);
+    }
+  }, []);
+
+  // Load database status and courses when the page opens.
   useEffect(() => {
     let cancelled = false;
 
@@ -117,16 +160,17 @@ function App() {
 
     loadInitialData();
     loadStudents();
+    loadGrades();
 
     return () => {
       cancelled = true;
     };
-  }, [loadStudents]);
+  }, [loadStudents, loadGrades]);
 
-  // Get unique departments from registered students.
+  // Get departments from registered students.
   const departments = useMemo(
     () =>
-      [...new Set(students.map((s) => s.department).filter(Boolean))].sort(),
+      [...new Set(students.map((student) => student.department).filter(Boolean))].sort(),
     [students]
   );
 
@@ -140,9 +184,7 @@ function App() {
         student.email,
         student.student_number,
         student.department,
-      ].some((value) =>
-        String(value ?? "").toLowerCase().includes(term)
-      );
+      ].some((value) => String(value ?? "").toLowerCase().includes(term));
 
       const matchesDepartment =
         selectedDepartment === "All" ||
@@ -152,6 +194,7 @@ function App() {
     });
   }, [students, search, selectedDepartment]);
 
+  // Handle student registration form changes.
   function handleChange(event) {
     const { name, value } = event.target;
 
@@ -164,7 +207,120 @@ function App() {
     setFormError("");
   }
 
-  // Register a student and refresh the student list.
+  // Handle grade form changes.
+  function handleGradeFormChange(event) {
+    const { name, value } = event.target;
+
+    setGradeForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+
+    setGradeMessage("");
+    setGradesError("");
+  }
+
+  // Save a grade through the backend.
+  async function handleGradeSubmit(event) {
+    event.preventDefault();
+    setGradeMessage("");
+    setGradesError("");
+
+    const marks = Number(gradeForm.marks);
+
+    if (
+      !gradeForm.student_id ||
+      !gradeForm.course_id ||
+      gradeForm.marks === ""
+    ) {
+      setGradesError(
+        "Select a student, select a course, and enter marks."
+      );
+      return;
+    }
+
+    if (!Number.isFinite(marks) || marks < 0 || marks > 100) {
+      setGradesError("Marks must be a number from 0 to 100.");
+      return;
+    }
+
+    setGradeSubmitting(true);
+
+    try {
+      const response = await fetch(`${API_URL}/grades`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          student_id: Number(gradeForm.student_id),
+          course_id: Number(gradeForm.course_id),
+          marks,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not save the grade.");
+      }
+
+      const savedGrade = data.grade;
+
+      setGradeMessage(
+        savedGrade
+          ? `Grade saved successfully: ${savedGrade.letter_grade} (${savedGrade.result}).`
+          : data.message || "Grade saved successfully."
+      );
+
+      setGradeForm((previous) => ({
+        ...previous,
+        marks: "",
+      }));
+
+      await loadGrades();
+    } catch (error) {
+      setGradesError(error.message || "Could not save the grade.");
+    } finally {
+      setGradeSubmitting(false);
+    }
+  }
+
+  // Find a student's results using their student number.
+  async function handleFindResults(event) {
+    event.preventDefault();
+    setStudentResult(null);
+    setResultError("");
+
+    const number = resultStudentNumber.trim();
+
+    if (!number) {
+      setResultError("Enter a student number first.");
+      return;
+    }
+
+    setResultLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/student-results/${encodeURIComponent(number)}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not find student results.");
+      }
+
+      setStudentResult(data);
+    } catch (error) {
+      setResultError(error.message || "Could not load student results.");
+    } finally {
+      setResultLoading(false);
+    }
+  }
+
+  // Register a student and reload the student list.
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
@@ -174,7 +330,9 @@ function App() {
     try {
       const response = await fetch(`${API_URL}/students`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(form),
       });
 
@@ -185,7 +343,9 @@ function App() {
       }
 
       setMessage(
-        `Student ${data.student?.full_name || form.full_name} registered successfully.`
+        `Student ${
+          data.student?.full_name || form.full_name
+        } registered successfully.`
       );
 
       setForm(emptyForm);
@@ -199,6 +359,7 @@ function App() {
 
   return (
     <div className="app">
+      {/* Navigation bar */}
       <header className="navbar">
         <a className="brand" href="#home">
           <span className="brand-icon">U</span>
@@ -209,6 +370,8 @@ function App() {
           <a href="#home">Home</a>
           <a href="#courses">Courses</a>
           <a href="#students">Students</a>
+          <a href="#grades">Grades</a>
+          <a href="#results">Results</a>
           <a href="#register">Register</a>
         </nav>
 
@@ -223,6 +386,7 @@ function App() {
       </header>
 
       <main>
+        {/* Home section */}
         <section className="hero" id="home">
           <div className="hero-text">
             <span className="eyebrow">
@@ -270,6 +434,7 @@ function App() {
           </div>
         </section>
 
+        {/* Courses section */}
         <section className="courses-section section" id="courses">
           <div className="section-heading">
             <div>
@@ -278,7 +443,9 @@ function App() {
               <p>Explore courses offered by the university.</p>
             </div>
 
-            <span className="course-count">{courses.length} courses</span>
+            <span className="course-count">
+              {courses.length} courses
+            </span>
           </div>
 
           <div className="connection-status">
@@ -314,6 +481,7 @@ function App() {
           )}
         </section>
 
+        {/* Student dashboard */}
         <section className="students-section section" id="students">
           <div className="student-heading">
             <div>
@@ -332,7 +500,6 @@ function App() {
             </button>
           </div>
 
-          {/* Dashboard statistics */}
           <div className="student-stats">
             <article className="student-stat-card">
               <div className="stat-icon blue">♙</div>
@@ -380,7 +547,8 @@ function App() {
               <div>
                 <h3>Registered Students</h3>
                 <p>
-                  Showing {filteredStudents.length} of {students.length} students
+                  Showing {filteredStudents.length} of {students.length}{" "}
+                  students
                 </p>
               </div>
 
@@ -434,7 +602,11 @@ function App() {
                 <h3>Could not load students</h3>
                 <p>{studentError}</p>
 
-                <button className="refresh-button" onClick={loadStudents}>
+                <button
+                  className="refresh-button"
+                  onClick={loadStudents}
+                  type="button"
+                >
                   Try again
                 </button>
               </div>
@@ -484,8 +656,11 @@ function App() {
                         <td>{student.student_number}</td>
                         <td>{student.email}</td>
                         <td>{student.department}</td>
+
                         <td>
-                          <span className="student-badge">Registered</span>
+                          <span className="student-badge">
+                            Registered
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -496,6 +671,342 @@ function App() {
           </div>
         </section>
 
+        {/* Grading system */}
+        <section className="grades-section section" id="grades">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">ACADEMIC ASSESSMENT</span>
+              <h2>Grading System</h2>
+              <p>
+                Record marks from 0 to 100 and review saved student grades.
+              </p>
+            </div>
+
+            <button
+              className="refresh-button"
+              type="button"
+              onClick={loadGrades}
+              disabled={gradesLoading}
+            >
+              {gradesLoading ? "Loading..." : "↻ Refresh grades"}
+            </button>
+          </div>
+
+          <div className="grade-scale-note">
+            <strong>Grade scale:</strong> A: 90–100 · B: 80–89 · C: 70–79
+            · D: 60–69 · F: below 60
+          </div>
+
+          <div className="grade-form-card">
+            <h3>Enter or update a grade</h3>
+            <p>
+              Choose a registered student and course, then enter the mark.
+            </p>
+
+            <form className="grade-form" onSubmit={handleGradeSubmit}>
+              <div className="form-field">
+                <label htmlFor="grade-student">Student</label>
+
+                <select
+                  id="grade-student"
+                  name="student_id"
+                  value={gradeForm.student_id}
+                  onChange={handleGradeFormChange}
+                  required
+                >
+                  <option value="">Select student</option>
+
+                  {students.map((student) => (
+                    <option key={student.id} value={student.id}>
+                      {student.full_name} ({student.student_number})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="grade-course">Course</label>
+
+                <select
+                  id="grade-course"
+                  name="course_id"
+                  value={gradeForm.course_id}
+                  onChange={handleGradeFormChange}
+                  required
+                >
+                  <option value="">Select course</option>
+
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.course_code} — {course.course_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="grade-marks">Marks (0–100)</label>
+
+                <input
+                  id="grade-marks"
+                  name="marks"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={gradeForm.marks}
+                  onChange={handleGradeFormChange}
+                  placeholder="e.g. 85"
+                  required
+                />
+              </div>
+
+              {gradesError && (
+                <div className="error-message" role="alert">
+                  {gradesError}
+                </div>
+              )}
+
+              {gradeMessage && (
+                <div className="success-message" role="status">
+                  {gradeMessage}
+                </div>
+              )}
+
+              <button
+                className="submit-button"
+                type="submit"
+                disabled={gradeSubmitting}
+              >
+                {gradeSubmitting ? "Saving grade..." : "Save Grade"}
+              </button>
+            </form>
+
+            <p className="form-note">
+              If the backend requires course enrollment, the student must be
+              enrolled in the selected course first.
+            </p>
+          </div>
+
+          <div className="grade-table-card">
+            <div className="student-list-heading">
+              <div>
+                <h3>Recorded Grades</h3>
+                <p>
+                  {grades.length} saved grade record
+                  {grades.length === 1 ? "" : "s"}
+                </p>
+              </div>
+            </div>
+
+            {gradesError && (
+              <div className="error-message" role="alert">
+                {gradesError}
+              </div>
+            )}
+
+            {gradesLoading && grades.length === 0 ? (
+              <p className="empty-note">Loading grades...</p>
+            ) : grades.length === 0 ? (
+              <div className="student-empty">
+                <h3>No grades recorded yet</h3>
+                <p>Use the form above to save the first grade.</p>
+              </div>
+            ) : (
+              <div className="student-table-wrapper">
+                <table className="student-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Student Number</th>
+                      <th>Course</th>
+                      <th>Marks</th>
+                      <th>Letter Grade</th>
+                      <th>Result</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {grades.map((grade) => (
+                      <tr
+                        key={
+                          grade.id ||
+                          `${grade.student_id}-${grade.course_id}`
+                        }
+                      >
+                        <td>{grade.student_name}</td>
+                        <td>{grade.student_number}</td>
+
+                        <td>
+                          <strong>{grade.course_code}</strong>
+                          <div>{grade.course_name}</div>
+                        </td>
+
+                        <td>
+                          {Number(grade.marks)
+                            .toFixed(2)
+                            .replace(/\.00$/, "")}
+                        </td>
+
+                        <td>
+                          <span className="grade-letter">
+                            {grade.letter_grade}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span
+                            className={
+                              grade.result === "Pass"
+                                ? "student-badge"
+                                : "grade-fail-badge"
+                            }
+                          >
+                            {grade.result}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Student results lookup */}
+        <section className="results-section section" id="results">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">STUDENT REPORT</span>
+              <h2>Student Results</h2>
+              <p>
+                Search for a student's grade report using their student
+                number.
+              </p>
+            </div>
+          </div>
+
+          <form
+            className="results-search-form"
+            onSubmit={handleFindResults}
+          >
+            <div className="form-field">
+              <label htmlFor="results-student-number">
+                Student number
+              </label>
+
+              <input
+                id="results-student-number"
+                value={resultStudentNumber}
+                onChange={(event) =>
+                  setResultStudentNumber(event.target.value)
+                }
+                placeholder="e.g. STU2026001"
+                required
+              />
+            </div>
+
+            <button
+              className="submit-button"
+              type="submit"
+              disabled={resultLoading}
+            >
+              {resultLoading ? "Searching..." : "Find Results"}
+            </button>
+          </form>
+
+          {resultError && (
+            <div className="error-message" role="alert">
+              {resultError}
+            </div>
+          )}
+
+          {studentResult && (
+            <div className="grade-table-card result-report">
+              <div className="result-student-summary">
+                <h3>
+                  {studentResult.student?.full_name || "Student Results"}
+                </h3>
+
+                <p>
+                  Student number:{" "}
+                  {studentResult.student?.student_number ||
+                    resultStudentNumber}
+                  {" · "}
+                  Department:{" "}
+                  {studentResult.student?.department || "Not available"}
+                </p>
+              </div>
+
+              {Array.isArray(studentResult.grades) &&
+              studentResult.grades.length > 0 ? (
+                <div className="student-table-wrapper">
+                  <table className="student-table">
+                    <thead>
+                      <tr>
+                        <th>Course</th>
+                        <th>Department</th>
+                        <th>Credit Hours</th>
+                        <th>Marks</th>
+                        <th>Grade</th>
+                        <th>Result</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {studentResult.grades.map((grade, index) => (
+                        <tr key={`${grade.course_code}-${index}`}>
+                          <td>
+                            <strong>{grade.course_code}</strong>
+                            <div>{grade.course_name}</div>
+                          </td>
+
+                          <td>{grade.department}</td>
+                          <td>{grade.credit_hours}</td>
+
+                          <td>
+                            {Number(grade.marks)
+                              .toFixed(2)
+                              .replace(/\.00$/, "")}
+                          </td>
+
+                          <td>
+                            <span className="grade-letter">
+                              {grade.letter_grade}
+                            </span>
+                          </td>
+
+                          <td>
+                            <span
+                              className={
+                                grade.result === "Pass"
+                                  ? "student-badge"
+                                  : "grade-fail-badge"
+                              }
+                            >
+                              {grade.result}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="student-empty">
+                  <h3>No grades found for this student</h3>
+                  <p>
+                    The student exists, but there are no recorded grades to
+                    display.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Student registration form */}
         <section className="registration-section section" id="register">
           <div className="registration-heading">
             <span className="eyebrow">JOIN OUR UNIVERSITY</span>
@@ -506,6 +1017,7 @@ function App() {
           <form className="registration-form" onSubmit={handleSubmit}>
             <div className="form-field">
               <label htmlFor="full_name">Full name</label>
+
               <input
                 id="full_name"
                 name="full_name"
@@ -519,6 +1031,7 @@ function App() {
 
             <div className="form-field">
               <label htmlFor="email">Email address</label>
+
               <input
                 id="email"
                 name="email"
@@ -533,6 +1046,7 @@ function App() {
 
             <div className="form-field">
               <label htmlFor="student_number">Student number</label>
+
               <input
                 id="student_number"
                 name="student_number"
@@ -546,6 +1060,7 @@ function App() {
 
             <div className="form-field">
               <label htmlFor="department">Department</label>
+
               <select
                 id="department"
                 name="department"
@@ -592,7 +1107,8 @@ function App() {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} UniReg · University Registration System
+          © {new Date().getFullYear()} UniReg · University Registration
+          System
         </p>
       </footer>
     </div>

@@ -1667,3 +1667,177 @@ footer {
 
 
 
+
+/* =========================================
+   FIXED DARK AND LIGHT THEME
+   Works with the current App.jsx
+========================================= */
+
+/* Smooth theme changes */
+body,
+.app,
+.navbar,
+.hero-card,
+.course-card,
+.student-stat-card,
+.student-list-card,
+.registration-form,
+.footer {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
+}
+
+/* DARK THEME */
+body:not(.light-mode),
+body:not(.light-mode) .app {
+  --theme-bg: #111827;
+  --theme-card: #1f2937;
+  --theme-text: #f1f5f9;
+  --theme-muted: #cbd5e1;
+  --theme-border: #374151;
+  --theme-input: #111827;
+
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+body:not(.light-mode) .navbar,
+body:not(.light-mode) .hero-card,
+body:not(.light-mode) .course-card,
+body:not(.light-mode) .student-stat-card,
+body:not(.light-mode) .student-list-card,
+body:not(.light-mode) .registration-form,
+body:not(.light-mode) .footer {
+  background-color: var(--theme-card);
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+body:not(.light-mode) h1,
+body:not(.light-mode) h2,
+body:not(.light-mode) h3,
+body:not(.light-mode) h4,
+body:not(.light-mode) label,
+body:not(.light-mode) strong,
+body:not(.light-mode) th,
+body:not(.light-mode) td,
+body:not(.light-mode) .brand,
+body:not(.light-mode) .main-nav a {
+  color: var(--theme-text);
+}
+
+body:not(.light-mode) p,
+body:not(.light-mode) .eyebrow,
+body:not(.light-mode) .form-note {
+  color: var(--theme-muted);
+}
+
+body:not(.light-mode) input,
+body:not(.light-mode) select,
+body:not(.light-mode) textarea {
+  background-color: var(--theme-input);
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+body:not(.light-mode) input::placeholder,
+body:not(.light-mode) textarea::placeholder {
+  color: #9ca3af;
+}
+
+body:not(.light-mode) .student-table th,
+body:not(.light-mode) .student-table td {
+  border-color: var(--theme-border);
+}
+
+body:not(.light-mode) .theme-button {
+  background-color: #374151;
+  color: #f9fafb;
+  border: 1px solid #4b5563;
+}
+
+/* LIGHT THEME */
+body.light-mode,
+body.light-mode .app {
+  --theme-bg: #f5f7fb;
+  --theme-card: #ffffff;
+  --theme-text: #172033;
+  --theme-muted: #64748b;
+  --theme-border: #e2e8f0;
+  --theme-input: #ffffff;
+
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+body.light-mode .navbar,
+body.light-mode .hero-card,
+body.light-mode .course-card,
+body.light-mode .student-stat-card,
+body.light-mode .student-list-card,
+body.light-mode .registration-form,
+body.light-mode .footer {
+  background-color: var(--theme-card);
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+body.light-mode h1,
+body.light-mode h2,
+body.light-mode h3,
+body.light-mode h4,
+body.light-mode label,
+body.light-mode strong,
+body.light-mode th,
+body.light-mode td,
+body.light-mode .brand,
+body.light-mode .main-nav a {
+  color: var(--theme-text);
+}
+
+body.light-mode p,
+body.light-mode .eyebrow,
+body.light-mode .form-note {
+  color: var(--theme-muted);
+}
+
+body.light-mode input,
+body.light-mode select,
+body.light-mode textarea {
+  background-color: var(--theme-input);
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+body.light-mode .theme-button {
+  background-color: #ffffff;
+  color: #172033;
+  border: 1px solid #e2e8f0;
+}
+
+/* Theme button */
+.theme-button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.theme-button:hover {
+  opacity: 0.85;
+}
+
+/* Keep tables readable in dark mode */
+body:not(.light-mode) .student-table tbody tr:hover {
+  background-color: #273449;
+}
+
+/* Responsive theme button */
+@media (max-width: 768px) {
+  .theme-button {
+    max-width: 100%;
+  }
+}

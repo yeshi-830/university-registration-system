@@ -13,6 +13,7 @@
 
   --brand: #3563e9;
   --brand-hover: #244dcc;
+  --brand-soft: rgba(53, 99, 233, 0.12);
   --surface: #ffffff;
   --page-bg: #f5f7fc;
   --section-bg: #f0f4fa;
@@ -36,7 +37,9 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background: var(--page-bg);
+  background:
+    radial-gradient(circle at top left, rgba(53, 99, 233, 0.14), transparent 30%),
+    linear-gradient(180deg, #f8faff 0%, #f4f7ff 50%, #f5f7fc 100%);
   color: var(--text);
   transition: background 0.25s ease, color 0.25s ease;
 }
@@ -185,15 +188,19 @@ p {
   flex-shrink: 0;
   padding: 10px 13px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--surface) 0%, #f2f7ff 100%);
   color: var(--text);
   font-size: 12px;
   font-weight: 700;
+  box-shadow: 0 8px 18px rgba(40, 71, 130, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .theme-button:hover {
   border-color: var(--brand);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(53, 99, 233, 0.12);
 }
 
 /* ========================================
@@ -276,6 +283,7 @@ p {
 ======================================== */
 
 .hero {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
   align-items: center;
@@ -285,6 +293,18 @@ p {
   min-height: 490px;
   margin: 0 auto;
   padding: 75px 5%;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  right: 4%;
+  top: 18px;
+  width: 290px;
+  height: 290px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(53, 99, 233, 0.18), transparent 68%);
+  pointer-events: none;
 }
 
 .hero-text h1 {
@@ -304,9 +324,30 @@ p {
 
 .hero-text > p {
   max-width: 590px;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
   color: var(--muted);
   font-size: 16px;
+}
+
+.hero-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 28px;
+}
+
+.hero-highlights span {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid rgba(53, 99, 233, 0.14);
+  border-radius: 999px;
+  background: rgba(53, 99, 233, 0.06);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .hero-card {

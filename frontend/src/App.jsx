@@ -403,6 +403,12 @@ function App() {
               student records in one convenient place.
             </p>
 
+            <div className="hero-highlights" aria-label="Key university features">
+              <span>Live student dashboard</span>
+              <span>Smart course catalog</span>
+              <span>Updated records</span>
+            </div>
+
             <a className="primary-button" href="#register">
               Register a Student →
             </a>

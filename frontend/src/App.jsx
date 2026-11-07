@@ -196,6 +196,22 @@ function App() {
     };
   }, [grades]);
 
+  const dashboardProgress = useMemo(() => {
+    const baseProgress = Math.min(
+      100,
+      Math.max(
+        45,
+        Math.round(
+          academicOverview.passRate +
+            Math.min(students.length * 4, 30) +
+            Math.min(courses.length * 2, 20)
+        )
+      )
+    );
+
+    return Math.min(100, baseProgress);
+  }, [academicOverview.passRate, students.length, courses.length]);
+
   // Search and filter students.
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -390,6 +406,7 @@ function App() {
 
         <nav className="main-nav">
           <a href="#home">Home</a>
+          <a href="#overview">Overview</a>
           <a href="#courses">Courses</a>
           <a href="#students">Students</a>
           <a href="#grades">Grades</a>
@@ -536,6 +553,48 @@ function App() {
               <strong>{academicOverview.averageGrade.toFixed(1)}%</strong>
               <p>{academicOverview.passRate}% pass rate across saved records</p>
             </article>
+          </div>
+
+          <div className="overview-panel">
+            <div className="panel-highlight">
+              <div className="panel-header">
+                <span className="panel-badge">Live</span>
+                <span>Operations pulse</span>
+              </div>
+
+              <h3>Enrollment is trending in the right direction</h3>
+              <p>
+                {students.length > 0
+                  ? `The university is maintaining a steady student base with ${academicOverview.totalPasses} passing records documented.`
+                  : "Register students to start building your academic dashboard."}
+              </p>
+
+              <div className="progress-row">
+                <span>Performance index</span>
+                <strong>{dashboardProgress}%</strong>
+              </div>
+
+              <div className="progress-bar" aria-label="Performance progress">
+                <span style={{ width: `${dashboardProgress}%` }} />
+              </div>
+            </div>
+
+            <div className="action-stack">
+              <a className="action-card" href="#students">
+                <span>Manage students</span>
+                <strong>Student hub</strong>
+              </a>
+
+              <a className="action-card" href="#grades">
+                <span>Track progress</span>
+                <strong>Grade tracker</strong>
+              </a>
+
+              <a className="action-card" href="#register">
+                <span>Quick add</span>
+                <strong>Register now</strong>
+              </a>
+            </div>
           </div>
         </section>
 

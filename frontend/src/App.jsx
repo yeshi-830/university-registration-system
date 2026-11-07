@@ -174,6 +174,28 @@ function App() {
     [students]
   );
 
+  const academicOverview = useMemo(() => {
+    if (!grades.length) {
+      return {
+        averageGrade: 0,
+        passRate: 0,
+        totalPasses: 0,
+      };
+    }
+
+    const totalMarks = grades.reduce(
+      (sum, grade) => sum + Number(grade.marks || 0),
+      0
+    );
+    const totalPasses = grades.filter((grade) => grade.result === "Pass").length;
+
+    return {
+      averageGrade: totalMarks / grades.length,
+      passRate: Math.round((totalPasses / grades.length) * 100),
+      totalPasses,
+    };
+  }, [grades]);
+
   // Search and filter students.
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -485,6 +507,36 @@ function App() {
               <p className="empty-note">No courses to display yet.</p>
             )
           )}
+        </section>
+
+        <section className="overview-section section" id="overview">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">ACADEMIC OVERVIEW</span>
+              <h2>Live campus insights</h2>
+              <p>Track performance and enrollment momentum across the university.</p>
+            </div>
+          </div>
+
+          <div className="overview-grid">
+            <article className="overview-card overview-card-blue">
+              <span className="overview-label">Students active</span>
+              <strong>{students.length}</strong>
+              <p>Registered learners in the system</p>
+            </article>
+
+            <article className="overview-card overview-card-purple">
+              <span className="overview-label">Course coverage</span>
+              <strong>{courses.length}</strong>
+              <p>Programs available for registration</p>
+            </article>
+
+            <article className="overview-card overview-card-green">
+              <span className="overview-label">Average grade</span>
+              <strong>{academicOverview.averageGrade.toFixed(1)}%</strong>
+              <p>{academicOverview.passRate}% pass rate across saved records</p>
+            </article>
+          </div>
         </section>
 
         {/* Student dashboard */}

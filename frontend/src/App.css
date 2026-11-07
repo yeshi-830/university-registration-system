@@ -276,6 +276,88 @@ main {
   font-size: 14px;
 }
 
+.overview-section {
+  width: 100%;
+  padding: 0 7% 75px;
+  background: #f6f8fc;
+}
+
+.overview-grid {
+  max-width: 1250px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.overview-card {
+  position: relative;
+  min-width: 0;
+  padding: 26px 24px;
+  overflow: hidden;
+  border: 1px solid #e7edf8;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(30, 64, 130, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.overview-card::before {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  opacity: 0.28;
+}
+
+.overview-card-blue::before {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.overview-card-purple::before {
+  background: rgba(124, 58, 237, 0.18);
+}
+
+.overview-card-green::before {
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.overview-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 32px rgba(30, 64, 130, 0.08);
+  border-color: #cddaf9;
+}
+
+.overview-label {
+  position: relative;
+  display: inline-block;
+  color: #647087;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.overview-card strong {
+  position: relative;
+  display: block;
+  margin: 18px 0 10px;
+  color: #172b59;
+  font-size: clamp(28px, 3vw, 38px);
+  letter-spacing: -0.8px;
+}
+
+.overview-card p {
+  position: relative;
+  margin: 0;
+  color: #647087;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .mini-stat {
   padding: 15px 0;
   display: flex;
@@ -620,6 +702,10 @@ footer p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 18px;
   }
+
+  .overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* =========================
@@ -704,6 +790,11 @@ footer p {
   }
 
   .course-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .overview-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
